@@ -1,5 +1,20 @@
 # Changelog
 
+## v0.2.0 — Local mode + scaffold (2026-06-18)
+
+Đổi mô hình sử dụng: cài tool vào dự án của bạn rồi điều khiển từ bên trong.
+
+### Đã thêm
+- **Lệnh tắt `runbot`** = `python -m src.main` (console script trong `pyproject.toml`).
+- **`runbot init`** — sinh scaffold `plan/` + `.botcoder/` (rules/policy/context mặc định nhúng trong code) ngay trong thư mục dự án. [`src/scaffold.py`]
+- **Chế độ local** (`runbot run` không tham số) — liệt kê plan trong `plan/`, cho chọn số hoặc `a`; Claude sửa code **trực tiếp** trong thư mục (không clone/PR); chạy test; **fix-loop** khi fail; xong đổi tên plan thành `done_…`. [`src/main.py` `process_task_local`]
+- **`run <đường-dẫn>` thông minh** (chế độ GitHub, nâng cao) — nhận thư mục local, repo `owner/name`, hoặc `profile.yaml`; tự tìm/tạo profile. [`src/init_project.py` `resolve_profile`]
+- Lệnh **`help`** tiếng Việt; output UTF-8 an toàn trên console Windows.
+
+### Đổi
+- `init-project` → **`init`** (giữ alias `init-project`).
+- Plan mặc định đọc từ `plan/` (số ít) thay vì `plans/`.
+
 ## v0.1.1 — MVP (2026-06-18)
 
 Phiên bản đầu tiên. Vòng end-to-end đã chạy thật và verify trên repo sandbox
