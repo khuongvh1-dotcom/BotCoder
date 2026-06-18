@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.2.3 — Hiện tiến trình khi chạy (2026-06-18)
+
+- **In tiến trình từng bước** khi Claude làm việc: mỗi lần gọi tool (Read/Edit/Write/Bash)
+  in 1 dòng `claude: ...`, kèm dòng đầu Claude nói. Không còn "im lặng không biết chạy
+  tới đâu". [`src/dispatcher/sdk_dispatcher.py` `on_progress`, `src/main.py`]
+- **Stream output test** trực tiếp ra terminal (thay vì nuốt tới khi xong) — thấy
+  `fvm flutter analyze` chạy tới đâu; in `test PASS`/`test FAIL`. [`src/main.py` `_run_local_tests`]
+- Thêm log "đang gọi Claude để sửa code…" trước mỗi lần dispatch.
+
 ## v0.2.2 — Rule ghi chú tiếng Việt (2026-06-18)
 
 - Thêm mục 8 "Code Comments (Vietnamese)" vào policy: yêu cầu Claude viết **ghi chú

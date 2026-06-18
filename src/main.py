@@ -67,6 +67,8 @@ class Orchestrator:
             max_turns=rules.budget.max_claude_turns_per_task,
             context_file=profile.context_file,
             company_policy_path=company_policy_path,
+            # In tiến trình từng bước Claude làm (sửa file gì, chạy lệnh gì) ra terminal.
+            on_progress=lambda msg: log(f"  claude: {msg}"),
         )
 
     def _save(self, task: Task) -> None:
@@ -256,6 +258,9 @@ class Orchestrator:
         max_attempts = self.rules.fix_loop.max_fix_attempts
         feedback: str | None = None
         while True:
+            attempt_label = f" (lần sửa {task.fix_attempts})" if task.fix_attempts else ""
+            log(f"task {task.id}: đang gọi Claude để sửa code{attempt_label}… "
+                f"(có thể mất vài phút; tiến trình hiện bên dưới)")
             result = self.dispatcher.dispatch(task, ws, feedback=feedback)
             self.audit.write_text(task, "prompt.md", getattr(self.dispatcher, "last_prompt", ""))
             self.audit.write_text(task, "claude_summary.md", result.summary or result.error or "")
@@ -306,8 +311,9 @@ class Orchestrator:
                       reason=f"local tests failed (attempt {task.fix_attempts})")
 
     def _run_local_tests(self, task: Task, ws: Path) -> tuple[bool, str]:
-        """Run the task's test commands (or the profile's) in ws. Returns (ok, output).
-        No test command configured => treated as pass (nothing to verify)."""
+        """Chạy các Test commands của task (hoặc lệnh test của profile) trong ws.
+        Trả về (ok, output). Stream output ra terminal theo thời gian thực để người
+        dùng thấy tiến trình. Không có test command => coi như pass (không cần verify)."""
         import subprocess
         cmds = task.test_commands or (
             [self.profile.commands["test"]] if "test" in self.profile.commands else []
@@ -316,12 +322,25 @@ class Orchestrator:
             return True, "(no test command configured; skipping)"
         chunks: list[str] = []
         for cmd in cmds:
-            log(f"task {task.id}: running tests: {cmd}")
-            proc = subprocess.run(cmd, cwd=str(ws), shell=True,
-                                  capture_output=True, text=True, encoding="utf-8", errors="replace")
-            chunks.append(f"$ {cmd}\n{proc.stdout}\n{proc.stderr}".strip())
+            log(f"task {task.id}: chạy test: {cmd}")
+            # Stream từng dòng output trực tiếp (không nuốt) để biết test đang chạy tới đâu.
+            lines: list[str] = []
+            proc = subprocess.Popen(
+                cmd, cwd=str(ws), shell=True, stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors="replace",
+                bufsize=1,
+            )
+            assert proc.stdout is not None
+            for line in proc.stdout:
+                line = line.rstrip("\n")
+                print(f"    | {line}", flush=True)   # in trực tiếp, thụt lề cho dễ nhìn
+                lines.append(line)
+            proc.wait()
+            chunks.append(f"$ {cmd}\n" + "\n".join(lines))
             if proc.returncode != 0:
+                log(f"task {task.id}: test FAIL (exit {proc.returncode})")
                 return False, "\n\n".join(chunks)
+            log(f"task {task.id}: test PASS")
         return True, "\n\n".join(chunks)
 
 
