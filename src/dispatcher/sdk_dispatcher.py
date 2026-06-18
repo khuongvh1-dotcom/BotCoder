@@ -93,16 +93,23 @@ class SdkDispatcher(Dispatcher):
         )
         self.last_prompt = prompt
         try:
-            summary, error = asyncio.run(self._run(prompt, workspace))
+            summary, error, truncated = asyncio.run(self._run(prompt, workspace))
         except Exception as exc:  # surface SDK/runtime errors to the orchestrator
             return DispatchResult(summary="", error=f"{type(exc).__name__}: {exc}")
-        return DispatchResult(summary=summary, error=error)
+        return DispatchResult(summary=summary, error=error, truncated=truncated)
 
-    async def _run(self, prompt: str, workspace: str | Path) -> tuple[str, Optional[str]]:
-        """Run the query to completion. Returns (summary, error). We never raise
-        from inside the async generator (that corrupts aclose); instead we record
-        the error and let the caller decide — the coder may have edited files even
-        when the final result is flagged an error."""
+    async def _run(
+        self, prompt: str, workspace: str | Path
+    ) -> tuple[str, Optional[str], bool]:
+        """Run the query to completion. Returns (summary, error, truncated). We
+        never raise from inside the async generator (that corrupts aclose);
+        instead we record the outcome and let the caller decide — the coder may
+        have edited files even when the final result is flagged an error.
+
+        `truncated` is True for the one benign case where Claude hit max_turns
+        (subtype 'error_max_turns'): NOT a real failure, just unfinished work.
+        The caller should re-dispatch to let Claude finish rather than treat the
+        half-done edits as final."""
         options = ClaudeAgentOptions(
             cwd=str(workspace),
             allowed_tools=self.allowed_tools,
@@ -112,6 +119,7 @@ class SdkDispatcher(Dispatcher):
         )
         final_text = ""
         error: Optional[str] = None
+        truncated = False
         # Hàm in tiến trình (no-op nếu không có callback) — để biết Claude đang làm gì.
         emit = self.on_progress or (lambda _msg: None)
 
@@ -129,8 +137,13 @@ class SdkDispatcher(Dispatcher):
         try:
             async for message in query(prompt=prompt, options=options):
                 if isinstance(message, ResultMessage):
-                    if message.is_error:
-                        detail = message.result or getattr(message, "subtype", "") or "unknown"
+                    subtype = getattr(message, "subtype", "") or ""
+                    if message.is_error and subtype == "error_max_turns":
+                        # Hết lượt, KHÔNG phải lỗi: đánh dấu để caller gọi tiếp.
+                        truncated = True
+                        final_text = message.result or final_text
+                    elif message.is_error:
+                        detail = message.result or subtype or "unknown"
                         errs = getattr(message, "errors", None)
                         error = f"Claude result error ({detail})" + (f": {errs}" if errs else "")
                     else:
@@ -150,4 +163,4 @@ class SdkDispatcher(Dispatcher):
                             _emit(f"💬 {first[:100]}")
         finally:
             spin.stop()
-        return final_text.strip(), error
+        return final_text.strip(), error, truncated

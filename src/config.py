@@ -69,6 +69,9 @@ class BudgetRules(BaseModel):
     max_tasks_per_run: int = 1
     max_claude_turns_per_task: int = 5
     max_runtime_minutes_per_task: int = 30
+    # Khi coder chạm max_claude_turns_per_task mà chưa xong, gọi tiếp tối đa bấy
+    # nhiêu lần để hoàn tất phần dở dang (mỗi lần lại được max_claude_turns lượt).
+    max_continue_attempts: int = 3
 
 
 class ExecutionRules(BaseModel):

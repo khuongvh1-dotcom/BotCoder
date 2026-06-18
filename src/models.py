@@ -110,6 +110,10 @@ class DispatchResult(BaseModel):
     summary: str = ""
     branch: Optional[str] = None
     error: Optional[str] = None
+    # True khi coder bị cắt giữa chừng vì chạm giới hạn lượt (max_turns), KHÔNG
+    # phải lỗi thật — code có thể đang dở dang. Orchestrator nên gọi tiếp để hoàn
+    # tất thay vì đẩy thẳng sang review/commit.
+    truncated: bool = False
 
 
 class CIConclusion(str, Enum):

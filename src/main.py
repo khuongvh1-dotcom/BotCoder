@@ -157,7 +157,7 @@ class Orchestrator:
                 git_ops.ensure_clone(self.profile.repo.url, ws, self.profile.repo.base_branch)
                 git_ops.create_branch(ws, task.branch, self.profile.repo.base_branch)
 
-            result = self.dispatcher.dispatch(task, ws, feedback=feedback)
+            result = self._dispatch_to_completion(task, ws, feedback)
             self.audit.write_text(task, "prompt.md", getattr(self.dispatcher, "last_prompt", ""))
             self.audit.write_text(task, "claude_summary.md", result.summary or result.error or "")
 
@@ -261,7 +261,7 @@ class Orchestrator:
             attempt_label = f" (lần sửa {task.fix_attempts})" if task.fix_attempts else ""
             log(f"task {task.id}: đang gọi Claude để sửa code{attempt_label}… "
                 f"(có thể mất vài phút; tiến trình hiện bên dưới)")
-            result = self.dispatcher.dispatch(task, ws, feedback=feedback)
+            result = self._dispatch_to_completion(task, ws, feedback)
             self.audit.write_text(task, "prompt.md", getattr(self.dispatcher, "last_prompt", ""))
             self.audit.write_text(task, "claude_summary.md", result.summary or result.error or "")
 
@@ -309,6 +309,38 @@ class Orchestrator:
             feedback = out
             self._set(task, TaskStatus.CI_FAILED,
                       reason=f"local tests failed (attempt {task.fix_attempts})")
+
+    def _dispatch_to_completion(self, task: Task, ws: Path, feedback: str | None):
+        """Gọi coder và, nếu nó bị cắt giữa chừng vì hết lượt (max_turns), tự gọi
+        TIẾP để làm nốt — tối đa max_continue_attempts lần. Mỗi lần nối tiếp được
+        cấp đủ max_turns mới. Trả về DispatchResult của lần chạy cuối.
+
+        Lý do: khi Claude chạm giới hạn lượt, code nó để lại thường đang DỞ DANG
+        (sửa được nửa file, chưa chạy analyze). Đẩy thẳng sang test/commit lúc này
+        nghĩa là commit code lỗi. Thay vào đó ta để Claude tự hoàn tất trước."""
+        max_continue = self.rules.budget.max_continue_attempts
+        result = self.dispatcher.dispatch(task, ws, feedback=feedback)
+        continues = 0
+        while result.truncated and continues < max_continue:
+            continues += 1
+            log(f"task {task.id}: Claude hết lượt khi chưa xong — gọi tiếp để hoàn tất "
+                f"(lần nối {continues}/{max_continue})…")
+            # Yêu cầu Claude làm NỐT phần còn dở, rồi chạy lại lệnh kiểm tra của task.
+            cont_feedback = (
+                "You ran out of turns before finishing and were interrupted "
+                "mid-task. Your previous edits are still on disk. CONTINUE from "
+                "where you stopped: finish every remaining change, leave no file "
+                "half-edited, and make sure the project still builds/analyzes "
+                "cleanly. Do not start over — build on the existing edits."
+            )
+            if feedback:
+                cont_feedback = feedback.strip() + "\n\n" + cont_feedback
+            result = self.dispatcher.dispatch(task, ws, feedback=cont_feedback)
+        if result.truncated:
+            # Vẫn chưa xong sau khi nối hết số lần cho phép: cảnh báo rõ ràng.
+            log(f"task {task.id}: vẫn chưa hoàn tất sau {max_continue} lần nối tiếp; "
+                f"code có thể còn dở — sẽ vẫn chạy test để kiểm chứng.")
+        return result
 
     def _run_local_tests(self, task: Task, ws: Path) -> tuple[bool, str]:
         """Chạy các Test commands của task (hoặc lệnh test của profile) trong ws.
