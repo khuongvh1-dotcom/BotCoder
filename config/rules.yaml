@@ -1,0 +1,54 @@
+# Orchestrator rules. Declares everything needed for parallel/multi-agent operation,
+# but the MVP runs sequential (execution.mode=sequential, max_parallel_tasks=1).
+
+ci:
+  required_checks: [test]        # GitHub Actions job/check names that must pass
+  poll_interval_seconds: 15
+  timeout_seconds: 900
+
+fix_loop:
+  max_fix_attempts: 3            # exceed -> task FAILED (avoid infinite loop)
+
+merge:
+  auto_merge: false             # MVP: stop at HUMAN_REVIEW, never auto-merge
+
+budget:
+  max_tasks_per_run: 1
+  max_claude_turns_per_task: 15
+  max_runtime_minutes_per_task: 30
+
+execution:                      # MVP: sequential; switch to parallel at v0.3
+  mode: sequential              # sequential | parallel
+  max_parallel_tasks: 1
+  max_parallel_per_repo: 1
+  max_parallel_high_risk: 0
+  allow_parallel_safe_tasks: true
+
+locks:                          # read in MVP but unused (sequential)
+  enable_path_lock: true
+  enable_conflict_group_lock: true
+
+plans:
+  input_glob: "plans/**/*.md"   # used at v0.2; MVP reads a single --plan file
+  allow_multiple_plans: true
+
+risk_rules:
+  high_risk:
+    - database migration
+    - auth
+    - payment
+    - storage delete
+    - sync queue
+    - RLS
+    - production config
+  safe:
+    - docs
+    - UI text
+    - tests
+    - pure function
+
+dispatch:
+  backend: sdk                  # sdk (MVP) | action (cloud) | openhands (later)
+  claude:
+    allowed_tools: [Read, Write, Edit, Bash]
+    permission_mode: acceptEdits

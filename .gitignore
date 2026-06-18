@@ -1,0 +1,25 @@
+# Secrets
+.env
+
+# Orchestrator runtime artifacts
+/workspace/*
+!/workspace/.gitkeep
+/runs/*
+!/runs/.gitkeep
+/state.json
+/state*.json
+/tasks/*.md
+
+# Scaffold runtime (created by `runbot init` in target projects)
+.botcoder/state.json
+.botcoder/runs/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.venv/
+venv/
+build/
+dist/

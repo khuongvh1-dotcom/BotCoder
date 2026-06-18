@@ -1,0 +1,36 @@
+# Sample profile for the BTS app (paused). Fill in real repo coords when used.
+project:
+  id: bts
+  name: BTS Survey App
+  type: flutter_supabase
+
+repo:
+  owner: CHANGE_ME
+  name: CHANGE_ME
+  url: https://github.com/CHANGE_ME/CHANGE_ME.git
+  base_branch: main
+
+branch_prefix: "ai-task/"
+
+labels:
+  task: ai-task
+  pending: pending
+
+commands:
+  install: "flutter pub get"
+  analyze: "flutter analyze"
+  test: "flutter test"
+  build: "flutter build web"
+
+paths:
+  danger:
+    - "supabase/migrations/**"
+    - "lib/**/sync/**"
+    - "lib/**/queue/**"
+    - "android/**"
+    - "ios/**"
+  readonly:
+    - "docs/architecture/**"
+
+context_file: AI_PROJECT_CONTEXT.md
+workspace_dir: workspace

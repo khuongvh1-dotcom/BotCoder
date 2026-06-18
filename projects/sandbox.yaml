@@ -1,0 +1,30 @@
+project:
+  id: sandbox
+  name: AI Sandbox
+  type: python
+
+repo:
+  owner: khuongvh1-dotcom
+  name: ai-sandbox
+  url: https://github.com/khuongvh1-dotcom/ai-sandbox.git
+  base_branch: main
+
+branch_prefix: "ai-task/"
+
+labels:
+  task: ai-task
+  pending: pending
+
+commands:
+  install: "pip install -e ."
+  test: "pytest"
+
+paths:
+  danger:
+    - ".github/**"
+    - "pyproject.toml"
+  readonly:
+    - "docs/**"
+
+context_file: AI_PROJECT_CONTEXT.md
+workspace_dir: workspace
