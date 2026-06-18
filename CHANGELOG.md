@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.2.4 — Spinner + tiến trình tiếng Việt (2026-06-18)
+
+- **Spinner dấu chấm nhảy** ([`src/spinner.py`]) chạy nền khi Claude đang làm việc:
+  khung quay + dấu chấm nhảy + nhãn "đang làm gì", cập nhật tại chỗ. Tự tắt khi
+  không phải terminal thật (pipe/CI) để không làm bẩn log.
+- **Tiến trình tiếng Việt**: tool Claude gọi hiển thị thành câu Việt — "Đang đọc…",
+  "Đang sửa…", "Đang ghi…", "Đang chạy lệnh…", "Đang tìm…". [`src/dispatcher/sdk_dispatcher.py`]
+
 ## v0.2.3 — Hiện tiến trình khi chạy (2026-06-18)
 
 - **In tiến trình từng bước** khi Claude làm việc: mỗi lần gọi tool (Read/Edit/Write/Bash)

@@ -28,22 +28,33 @@ from .base import Dispatcher, build_prompt
 
 
 def _summarize_tool_use(block: "ToolUseBlock") -> str:
-    """Tóm tắt một lần Claude gọi tool thành 1 dòng ngắn để in ra terminal.
-    Trả về chuỗi kiểu 'Edit map_view.dart' hoặc 'Bash: fvm flutter analyze'."""
+    """Tóm tắt một lần Claude gọi tool thành 1 câu tiếng Việt ngắn để in ra terminal.
+    Trả về chuỗi kiểu 'Đang sửa map_view.dart' hoặc 'Đang chạy: fvm flutter analyze'."""
     name = getattr(block, "name", "tool")
     inp = getattr(block, "input", {}) or {}
-    # Mỗi tool có tham số chính khác nhau -> rút gọn cho dễ đọc.
-    if name in ("Edit", "Write", "Read", "NotebookEdit"):
-        target = inp.get("file_path") or inp.get("path") or ""
-        # chỉ giữ tên file (bỏ đường dẫn dài) cho gọn
-        target = target.replace("\\", "/").rsplit("/", 1)[-1]
-        return f"{name} {target}".strip()
+
+    def _ten_file(val: str) -> str:
+        # Chỉ giữ tên file (bỏ đường dẫn dài) cho gọn.
+        return (val or "").replace("\\", "/").rsplit("/", 1)[-1]
+
+    # Mỗi tool quy ra một câu tiếng Việt cho người dùng dễ hiểu.
+    if name == "Read":
+        return f"Đang đọc {_ten_file(inp.get('file_path') or inp.get('path'))}".strip()
+    if name == "Edit":
+        return f"Đang sửa {_ten_file(inp.get('file_path'))}".strip()
+    if name in ("Write", "NotebookEdit"):
+        return f"Đang ghi {_ten_file(inp.get('file_path') or inp.get('path'))}".strip()
     if name == "Bash":
         cmd = (inp.get("command") or "").strip().replace("\n", " ")
-        return f"Bash: {cmd[:80]}"
-    if name in ("Grep", "Glob"):
-        return f"{name} {inp.get('pattern', '')}"
-    return name
+        return f"Đang chạy lệnh: {cmd[:80]}"
+    if name == "Grep":
+        return f"Đang tìm '{inp.get('pattern', '')}'"
+    if name == "Glob":
+        return f"Đang quét file '{inp.get('pattern', '')}'"
+    if name in ("TodoWrite",):
+        return "Đang lập danh sách việc cần làm"
+    # Tool khác: hiển thị tên gốc cho minh bạch.
+    return f"Đang dùng công cụ {name}"
 
 
 class SdkDispatcher(Dispatcher):
@@ -103,22 +114,40 @@ class SdkDispatcher(Dispatcher):
         error: Optional[str] = None
         # Hàm in tiến trình (no-op nếu không có callback) — để biết Claude đang làm gì.
         emit = self.on_progress or (lambda _msg: None)
-        async for message in query(prompt=prompt, options=options):
-            if isinstance(message, ResultMessage):
-                if message.is_error:
-                    detail = message.result or getattr(message, "subtype", "") or "unknown"
-                    errs = getattr(message, "errors", None)
-                    error = f"Claude result error ({detail})" + (f": {errs}" if errs else "")
-                else:
-                    final_text = message.result or final_text
-            elif isinstance(message, AssistantMessage):
-                # Duyệt từng block: tool-use -> in 'đang sửa file X'; text -> in tóm tắt.
-                for b in message.content:
-                    if isinstance(b, ToolUseBlock):
-                        emit(_summarize_tool_use(b))
-                    elif isinstance(b, TextBlock) and b.text.strip():
-                        final_text = b.text
-                        # in 1 dòng đầu của đoạn Claude nói cho người dùng theo dõi
-                        first = b.text.strip().splitlines()[0]
-                        emit(f"💬 {first[:100]}")
+
+        from ..spinner import Spinner
+        # Spinner chạy nền: dấu chấm nhảy + nhãn 'Claude đang làm gì' để biết còn sống.
+        spin = Spinner("Claude đang suy nghĩ").start()
+
+        def _emit(msg: str) -> None:
+            """In 1 dòng log cố định, tạm dừng spinner để không bị đè ký tự."""
+            spin.stop()
+            emit(msg)
+            spin.set_label(msg)
+            spin.start()
+
+        try:
+            async for message in query(prompt=prompt, options=options):
+                if isinstance(message, ResultMessage):
+                    if message.is_error:
+                        detail = message.result or getattr(message, "subtype", "") or "unknown"
+                        errs = getattr(message, "errors", None)
+                        error = f"Claude result error ({detail})" + (f": {errs}" if errs else "")
+                    else:
+                        final_text = message.result or final_text
+                elif isinstance(message, AssistantMessage):
+                    # Duyệt từng block: tool-use -> 'đang sửa file X'; text -> tóm tắt.
+                    for b in message.content:
+                        if isinstance(b, ToolUseBlock):
+                            _emit(_summarize_tool_use(b))
+                        elif isinstance(b, ThinkingBlock):
+                            # Claude đang suy luận -> chỉ đổi nhãn spinner, không in log dài.
+                            spin.set_label("Claude đang suy nghĩ")
+                        elif isinstance(b, TextBlock) and b.text.strip():
+                            final_text = b.text
+                            # in 1 dòng đầu của đoạn Claude nói cho người dùng theo dõi
+                            first = b.text.strip().splitlines()[0]
+                            _emit(f"💬 {first[:100]}")
+        finally:
+            spin.stop()
         return final_text.strip(), error
