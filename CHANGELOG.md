@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.2.1 — Policy đầy đủ (2026-06-18)
+
+- Thay policy mặc định bằng bản 8 mục chuẩn (Scope, Safety, Simplicity, Surgical
+  Changes, Goal-Driven, Ambiguity, Tests, Output) + format báo cáo cuối
+  `DONE | BLOCKED | FAILED`. Áp cho cả [`company/AI_COMPANY_POLICY.md`] và bản nhúng
+  sinh ra khi `runbot init` ([`src/scaffold.py`] `DEFAULT_COMPANY_POLICY`).
+
 ## v0.2.0 — Local mode + scaffold (2026-06-18)
 
 Đổi mô hình sử dụng: cài tool vào dự án của bạn rồi điều khiển từ bên trong.
