@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.2.2 — Rule ghi chú tiếng Việt (2026-06-18)
+
+- Thêm mục 8 "Code Comments (Vietnamese)" vào policy: yêu cầu Claude viết **ghi chú
+  tiếng Việt đầy đủ** cho hàm/biến và lưu file **UTF-8** để không lỗi font. Output dời
+  thành mục 9. Áp cho cả [`company/AI_COMPANY_POLICY.md`] và bản nhúng [`src/scaffold.py`].
+
 ## v0.2.1 — Policy đầy đủ (2026-06-18)
 
 - Thay policy mặc định bằng bản 8 mục chuẩn (Scope, Safety, Simplicity, Surgical

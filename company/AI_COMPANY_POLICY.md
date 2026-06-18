@@ -129,7 +129,24 @@ When blocked, explain:
 * If a test command cannot be run, report why.
 * If tests fail for reasons unrelated to your change, report the failure clearly and do not hide it.
 
-## 8. Output
+## 8. Code Comments (Vietnamese)
+
+Write clear, complete code comments **in Vietnamese**.
+
+* Add a Vietnamese comment for every function/method you write or change, explaining what it does, its parameters, and what it returns.
+* Add a Vietnamese comment for every non-trivial variable explaining its purpose.
+* Comment the intent of non-obvious logic blocks in Vietnamese.
+* Comments must be full, natural Vietnamese sentences — not terse keyword fragments.
+
+Encoding:
+
+* Save every edited file as **UTF-8** so Vietnamese characters render correctly (no mojibake / font corruption).
+* Use real Vietnamese diacritics (ví dụ: "biến", "hàm", "trả về") — do not strip accents and do not use broken/escaped characters.
+* Do not introduce a BOM unless the file already had one.
+
+Keep comments consistent with the surrounding language: if a file already uses English comments throughout, match the requested Vietnamese style for the code you add while leaving unrelated existing comments untouched.
+
+## 9. Output
 
 Your job is to edit files in the working directory only.
 
